@@ -25,10 +25,10 @@ use spl_token::{
     state::Account,
 };
 
-// TODO figure out how to have static pubkeys
+pub const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+pub const MALLOC_PROG_ID: &'static str = "ma11ocdevdevdevdevdevdevdevdevdevdevdevdevd";
+
 solana_program::declare_id!("ma11ocwca1111111111111111111111111111111111");
-const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-const MALLOC_PROG_ID: &'static str = "ma11ocdevdevdevdevdevdevdevdevdevdevdevdevd";
 
 /// transfer input SPL token to current token
 pub fn transfer_from_input(
