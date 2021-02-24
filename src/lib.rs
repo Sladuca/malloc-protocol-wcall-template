@@ -21,47 +21,41 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use spl_token::{
-    instruction::{approve, transfer},
+    instruction::{approve as spl_approve, transfer as spl_transfer},
     state::Account,
 };
 
+pub const WCALL_SEED: &[u8] = b"wcall";
 pub const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 pub const MALLOC_PROG_ID: &'static str = "ma11ocdevdevdevdevdevdevdevdevdevdevdevdevd";
 
 solana_program::declare_id!("ma11ocwca1111111111111111111111111111111111");
 
-/// transfer input SPL token to current token
-pub fn transfer_from_input(
+/// call "Transfer" for SPL token
+/// three account infos: source, destination, signer (delegate / owner)
+pub fn transfer(
     amount: u64,
     prog_id: &Pubkey,
-    recipient_account: &[AccountInfo],
+    account_infos: &[AccountInfo],
 ) -> Result<(), ProgError> {
-    let malloc_token_account =
-        Pubkey::create_program_address(&[b"malloc"], &Pubkey::from_str(MALLOC_PROG_ID).unwrap())
-            .map_err(|e| {
-                msg!("error finding program-derived address!");
-                ProgError::ProgDerivedAddrError
-            })?;
+    let wcall_pubkey = Pubkey::create_program_address(&[WCALL_SEED], prog_id).map_err(|e| {
+        msg!("error finding program-derived address!");
+        ProgError::ProgDerivedAddrError
+    })?;
 
-    let wcall_token_account =
-        Pubkey::create_program_address(&[b"wcall"], prog_id).map_err(|e| {
-            msg!("error finding program-derived address!");
-            ProgError::ProgDerivedAddrError
-        })?;
-
-    let insn = transfer(
+    let insn = spl_transfer(
         &Pubkey::from_str(TOKEN_PROG_ID).unwrap(),
-        &malloc_token_account,
-        &wcall_token_account,
-        &wcall_token_account,
-        &[&wcall_token_account],
+        &account_infos[0].key,
+        &account_infos[1].key,
+        &wcall_pubkey,
+        &[&wcall_pubkey],
         amount,
     )
     .map_err(|e| {
         msg!("error constructing SPL transfer: {}", e);
         ProgError::TransferError
     })?;
-    invoke_signed(&insn, recipient_account, &[&[b"wcall"]]).map_err(|e| {
+    invoke_signed(&insn, account_infos, &[&[WCALL_SEED]]).map_err(|e| {
         msg!("error in SPL transfer: {}", e);
         ProgError::TransferError
     })?;
@@ -69,21 +63,21 @@ pub fn transfer_from_input(
     Ok(())
 }
 
-/// call "Approve" on output SPL token for malloc contract to be able to enact next basket
-pub fn approve_output(
+/// call "Approve" for SPL token
+/// three account infos: source, delegate, owner of source
+pub fn approve(
     amount: u64,
     prog_id: &Pubkey,
-    delegate_pubkey: &Pubkey,
-    delegate_account: &[AccountInfo],
+    account_infos: &[AccountInfo],
 ) -> Result<(), ProgError> {
-    let wcall_pubkey = Pubkey::create_program_address(&[b"wcall"], prog_id).map_err(|e| {
+    let wcall_pubkey = Pubkey::create_program_address(&[WCALL_SEED], prog_id).map_err(|e| {
         msg!("error finding program-derived address!");
         ProgError::ProgDerivedAddrError
     })?;
-    let insn = approve(
+    let insn = spl_approve(
         &Pubkey::from_str(TOKEN_PROG_ID).unwrap(),
-        &wcall_pubkey,
-        &delegate_pubkey,
+        &account_infos[0].key,
+        &account_infos[1].key,
         &wcall_pubkey,
         &[&wcall_pubkey],
         amount,
@@ -93,7 +87,7 @@ pub fn approve_output(
         ProgError::ApproveError
     })?;
 
-    invoke_signed(&insn, delegate_account, &[&[b"wcall"]]).map_err(|e| {
+    invoke_signed(&insn, account_infos, &[&[WCALL_SEED]]).map_err(|e| {
         msg!("error in SPL approve: {}", e);
         ProgError::ApproveError
     })?;
